@@ -1,0 +1,260 @@
+# NeuroMorph Configuration File — v2.0 (Active Deception Mode)
+
+# Network Configuration
+network:
+  # Target LLM API endpoints (add your specific endpoints)
+  target_endpoints:
+    - "api.openai.com"
+    - "api.anthropic.com"
+    - "generativelanguage.googleapis.com"
+  
+  # Port filtering
+  target_ports:
+    - 443
+  
+  # WinDivert filter string
+  filter_template: "tcp.DstPort == 443 and (ip.DstAddr == {ip})"
+
+# Multi-LLM Provider Configuration
+llm_endpoints:
+  openai:
+    - "api.openai.com"
+    - "chat.openai.com"
+  anthropic:
+    - "api.anthropic.com"
+  google:
+    - "generativelanguage.googleapis.com"
+    - "ai.google.dev"
+  perplexity:
+    - "api.perplexity.ai"
+  copilot:
+    - "api.githubcopilot.com"
+    - "copilot-proxy.githubusercontent.com"
+  cohere:
+    - "api.cohere.ai"
+  mistral:
+    - "api.mistral.ai"
+  huggingface:
+    - "api-inference.huggingface.co"
+
+# Traffic Morphing Configuration
+morphing:
+  # Sliding window size for feature extraction (increased for better state)
+  window_size: 16
+
+  # Action space configuration — 12 total actions
+  actions:
+    # Action 0: Pass through
+    pass_through:
+      enabled: true
+
+    # Action 1: Temporal Jitter
+    temporal_jitter:
+      enabled: true
+      min_delay_ms: 0.5
+      max_delay_ms: 5.0
+
+    # Action 2: Payload Padding
+    payload_padding:
+      enabled: true
+      min_padding: 10
+      max_padding: 500
+
+    # Action 3: TCP Segmentation
+    tcp_segmentation:
+      enabled: true
+      min_segment_size: 2
+      max_segment_size: 100
+
+    # Action 4: Constant Size (POWERFUL — destroys size information)
+    constant_size:
+      enabled: true
+      target_size: 1400         # MTU-sized packets — removes all size variation
+
+    # Action 5: Fixed Rate Clock (POWERFUL — destroys timing information)
+    fixed_rate_clock:
+      enabled: true
+      interval_ms: 10.0         # Send packet every 10ms exactly
+
+    # Action 6: Cover Traffic (injects dummy indistinguishable packets)
+    cover_traffic:
+      enabled: true
+      dummy_rate: 0.5           # Inject 1 dummy per 2 real packets
+      dummy_size_mean: 800
+      dummy_size_std: 200
+
+    # Action 7: Video Stream Mimicry (EXTREME — reshape to look like Netflix)
+    video_mimicry:
+      enabled: true
+      target_size_mean: 1390    # Typical video chunk
+      target_size_std: 15       # Very tight distribution
+      target_interval_ms: 10.0  # 100 pps = video streaming
+
+    # Action 8: DNS Traffic Mimicry (EXTREME — reshape to look like DNS)
+    dns_mimicry:
+      enabled: true
+      target_size_mean: 60      # Tiny DNS packets
+      target_size_std: 20
+      split_into: 8             # Fragment into 8 tiny packets
+
+    # Action 9: Inverse Decoy (make traffic look like OPPOSITE topic)
+    inverse_decoy:
+      enabled: true
+      decoy_size_mean: 120      # Small packets (opposite of LLM response bursts)
+      decoy_size_std: 40
+      decoy_timing_ms: 45.0     # Slow + small = looks like non-LLM
+
+    # Action 10: Max Entropy (force uniform size distribution)
+    max_entropy:
+      enabled: true
+      size_min: 40
+      size_max: 1500            # Full uniform range — maximum entropy
+
+    # Action 11: Full Ensemble (combines actions 4+5+6+7 simultaneously)
+    full_ensemble:
+      enabled: true
+      # Applies: constant_size + fixed_rate + cover_traffic + light jitter
+
+    # Action 12: Perfect Mimicry (0% adversary accuracy target)
+    perfect_mimicry:
+      enabled: true
+      target_size: 1400       # Exactly MTU — zero size variance
+      clock_interval_ms: 10.0 # Exactly 10ms — zero timing variance
+      cover_dummies: 2        # Always inject 2 dummy packets
+      # Together: adversary trained on LLM patterns ALWAYS predicts wrong class
+
+  # Advanced evasion techniques (applied additively in some actions)
+  advanced_evasion:
+    wrong_checksum: true
+    wrong_sequence: true
+    ip_id_randomization: true
+    low_ttl_injection: true
+
+  # Traffic mimicry reference profiles
+  mimicry_profiles:
+    video:
+      size_mean: 1390
+      size_std: 15
+      interval_ms: 10.0
+      description: "Netflix/YouTube video streaming"
+    dns:
+      size_mean: 60
+      size_std: 20
+      interval_ms: 50.0
+      description: "DNS query/response traffic"
+    web:
+      size_mean: 800
+      size_std: 400
+      interval_ms: 30.0
+      description: "Normal web browsing"
+    background:
+      size_mean: 200
+      size_std: 150
+      interval_ms: 100.0
+      description: "Background OS traffic"
+
+# DRL Agent Configuration — v2.0 Deep Architecture
+agent:
+  # Model architecture
+  algorithm: "PPO"              # Options: PPO, DQN
+  policy_network: "MlpPolicy"
+
+  # Deep network architecture (4 layers with residuals)
+  hidden_dims: [512, 512, 256, 128]
+  use_layer_norm: true
+  use_residual: true
+  activation: "gelu"            # GELU for smoother gradients vs ReLU
+
+  # Hyperparameters
+  learning_rate: 0.0001         # Lower LR for stability with deeper network
+  gamma: 0.99
+  gae_lambda: 0.97              # Higher lambda = less bias in advantage
+  clip_range: 0.15              # Tighter clip for stability
+  entropy_coef: 0.02            # Encourage exploration
+
+  # Training parameters
+  total_timesteps: 300000       # 3x more than before
+  n_steps: 300                  # 300 steps per episode (was 50)
+  batch_size: 128
+  n_epochs: 10
+  max_grad_norm: 0.5
+
+  # State space: window_size(16) × features_per_packet(5) = 80
+  state_dim: 80
+
+  # Action space — 13 actions (12 + Perfect Mimicry for 0%)
+  action_dim: 13
+
+  # Self-play configuration
+  self_play:
+    enabled: true
+    adversary_retrain_every: 50  # Retrain adversary every 50 episodes
+    num_adversary_types: 5       # RF, MLP, SVM, LightGBM, Neural
+
+# Adversarial Classifier Configuration — Strong Multi-Adversary
+adversary:
+  # Classifier type for evaluation
+  type: "ensemble"              # Use ensemble of multiple classifiers
+  
+  # Individual classifiers in ensemble
+  classifiers:
+    - "RandomForest"
+    - "MLP"
+    - "LightGBM"
+    - "SVM"
+
+  # Rich feature set (15 features — was 3)
+  feature_dim: 15
+  
+  # Training data configuration
+  baseline_data_path: "data/baseline_traffic.csv"
+  
+  # Model parameters
+  n_estimators: 100
+  max_depth: 10
+
+# Reward Function — Deception-Tuned
+reward:
+  # Weights for multi-objective optimization
+  security_weight: 2.0          # Doubled vs original
+  latency_penalty_weight: 0.2   # Reduced to allow more aggressive morphing
+  bandwidth_penalty_weight: 0.1 # Reduced
+
+  # Active deception bonus (key to getting below 50% → 0%)
+  deception_bonus_sub50: 1.0    # +1.0 bonus when accuracy < 50%
+  deception_bonus_sub25: 2.5    # +2.5 bonus when accuracy < 25%
+  deception_bonus_sub10: 4.0    # +4.0 bonus when accuracy < 10%
+  deception_bonus_sub5:  6.0    # +6.0 bonus when accuracy < 5%
+  deception_bonus_zero:  10.0   # +10.0 JACKPOT when accuracy = 0%!
+
+  # Thresholds
+  max_acceptable_latency_ms: 80       # Relaxed for aggressive morphing
+  max_acceptable_bandwidth_overhead: 0.5  # Allow up to 50% overhead
+
+  # Target
+  target_adversary_accuracy: 0.00    # 0% is the goal!
+
+# Logging and Monitoring
+logging:
+  level: "INFO"
+  log_file: "logs/neuromorph.log"
+  metrics_dir: "logs/metrics"
+  tensorboard_dir: "logs/tensorboard"
+
+# Data Collection Configuration
+data:
+  baseline_dir: "data/baseline"
+  morphed_dir: "data/morphed"
+  max_packets_per_session: 10000
+
+# Multipath Configuration
+multipath:
+  enabled: false
+  vpn_interface: null
+  split_ratio: 0.5
+
+# Performance Configuration
+performance:
+  async_workers: 4
+  packet_buffer_size: 1000
+  checksum_offload: true

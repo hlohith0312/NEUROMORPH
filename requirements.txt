@@ -1,0 +1,14 @@
+# NeuroMorph: AI-Driven Network Traffic Obfuscation System
+# Python dependencies
+
+# Core packet interception (Windows kernel-level hook)
+pydivert>=2.1.0
+
+# Deep Reinforcement Learning & Machine Learning
+torch>=2.0.0
+numpy>=1.24.0
+scikit-learn>=1.3.0
+
+# Configuration & Utilities
+pyyaml>=6.0
+psutil>=5.9.0
